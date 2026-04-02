@@ -1,79 +1,77 @@
 package controls
 
 import(
-	"fmt"
 	"net/http"
-	"encoding/json"
 	"strconv"
 
 	"github.com/WDaily/go-RBAC-Booking-api/database"
 	"github.com/WDaily/go-RBAC-Booking-api/utils"
+
 	"github.com/gorilla/mux"
 )
 
-func AddRoom(w http.ResponseWriter, r*http.Request){
-	var room models.Room 
+func (c Controls) AddRoom(w http.ResponseWriter, r*http.Request){
+	var room database.Room 
 
-	utils.ChangeFmt(r,&input)
-
-	room,err := room.CreateRoom()
-	if err != nil{
-		fmt.Fprintf(w,"Error while adding room: %s",err)
+	if err := utils.ChangeFormat(r,room); err != nil{
+		Response(w,err)
 	}
 
-	resp,_:= json.Marshal(room)
-	w.Header().Set("content-type","applicaton/json")
-	w.WriteHeader(http.StatusOK)
-	w.write(resp)
+	if err := c.db.CreateRoom(&room); err != nil{
+		Response(w,err)
+	}
+
+	Output(w, room)
 }
 
-func (c*Controllers)UpdateRoom(w http.ResponseWriter, r*http.Request){
-	var updateRoom models.Room
+func (c Controls)UpdateRoom(w http.ResponseWriter, r*http.Request){
+	var updateRoom database.Room
 
 	param := mux.Vars(r)
-	Id,err := strconv.ParseInt(param["ID"],0,0)
+	id,err := strconv.ParseUint(param["ID"],0,0)
 	if err != nil{
-		fmt.Fprintf(w,"Parsing error: %s",err)
+		Response(w,err)
+	}
+	//check whether its possible if not present not to update
+	//err := c.db.GetRoom(id)
+	//if err != nil {
+	//	fmt.Fprintf(w,"Error while retrieving room: %s",err)
+	//}
+
+	if err := utils.ChangeFormat(r,&updateRoom); err != nil{
+		Response(w,err)
 	}
 
-	err := c.db.GetRoom(Id)
-	if err != nil {
-		fmt.Fprintf(w,"Error while retrieving room: %s",err)
+	updateRoom.ID = uint(id)
+
+	if err := c.db.UpdateRoom(&updateRoom); err != nil {
+		Response(w,err)
 	}
 
-	utils.ChangeFmt(r,&updateRoom)
-
-	room,err := c.db.UpdateRoom(&updateRoom)
-	if err != nil {
-		fmt.Fprintf(w,"Error while updating room: %s",err)
-	}
-
-	resp,_ := json.Marshal(room)
-	w.Header().Set("content-type","application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write(resp)
+	Output(w, updateRoom)
 }
 
-func (c*Controllers) GetRooms(w http.ResponseWriter, r*http.Request){
-	rooms:= c.db.GetRooms()
+func (c Controls) GetRooms(w http.ResponseWriter, r*http.Request){
+	rooms, err:= c.db.GetRooms()
 
-	resp :+ json.Marshal(rooms)
-	w.Header().Set("content-type","application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write(resp)
-	
+	if err != nil{
+		Response(w,err)
+	}
+
+	Output(w, rooms)	
 }
 
-func (c*Controllers) GetRoom(w http.ResponseWriter, r*http.Request){
+func (c Controls) GetRoom(w http.ResponseWriter, r*http.Request){
 	param := mux.Vars(r)
-	Id,err := strconv.ParseInt(param["ID"],0,0)
+	id,err := strconv.ParseUint(param["ID"],0,0)
 	if err != nil{
-		fmt.Fprintf(w,"Parsing error: %s",err)
+		Response(w,err)
 	}
-	room:= c.db.GetRoom(Id)
-	resp := json.Marshal(room)
-	w.Header().Set("content-type","application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write(resp)
-	
+	room, err:= c.db.GetRoom(uint(id))
+
+	if err != nil {
+		Response(w,err)
+	}
+
+	Output(w, room)
 }

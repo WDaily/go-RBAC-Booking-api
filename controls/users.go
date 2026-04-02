@@ -1,89 +1,88 @@
 package controls
 
 import(
-	"github.com/gorilla/mux"
+	"strconv"
+	"net/http"
 
-	"github.com/WDaily/go-RBAC-Booking-api/application"
+	"github.com/WDaily/go-RBAC-Booking-api/models"
 	"github.com/WDaily/go-RBAC-Booking-api/utils"
+	middleware "github.com/WDaily/go-RBAC-Booking-api/routes/middleware"
+	"github.com/WDaily/go-RBAC-Booking-api/database"
+
+	"github.com/gorilla/mux"
 )
 
-func Input(w http.ResponseWriter,r*http.Request){
-	//if doesn't work fix here
-	var input application.Input
+func (c Controls) Input(w http.ResponseWriter,r*http.Request){
+	var input models.Input
 
-	utils.ChangeFmt(r,&input)
+	if err := utils.ChangeFormat(r, &input); err != nil{
+		Response(w,err)
+	}
 
-	userNew := models.User{
-		Username:input.Username,
+	userNew := database.User{
+		UserName:input.Username,
 		Password: input.Password,
-		RoleID: 3,
-	}
-	//IF doesn't work fix here 
-	user,err := userNew.Create()
-
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-
+		RoleName: "user",
 	}
 
-	resp,_ := json.Marshal(user)
+	if err := c.db.Create(&userNew); err != nil {	
+		Response(w,err)
+	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write(resp)
+	Output(w, userNew)
 }
 
 
-func(c*Controllers) Login(w http.ResponseWriter, r*http.Request){
-	var loginInput application.Login
+func(c Controls) Login(w http.ResponseWriter, r*http.Request){
+	var loginInput models.Login
 
-	utils.ChangeFmt(r, &loginInput)
+	if err := utils.ChangeFormat(r,&loginInput); err != nil{
+		Response(w,err)
+	}
 
 
 	user, err := c.db.GetUserByName(loginInput.Username)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
+		Response(w,err)
 	}
 
-	//validate the entered password by comparing with the onein db
-	if err := user.ValidatePassword(loginInput.Password); err != nil{
-		w.WriteHeader(http.StatusBadRequest)
+	if err := database.ValidatePassword(loginInput.Password, user); err != nil{	
+		Response(w,err)
 	}
 
-	generated, err:= auth.Generate(user)
+	generated, err:= middleware.GenerateToken(user)
+	if err != nil{	
+		Response(w,err)
+	}
+
+	middleware.SetInformation(w,generated)
+
+	w.WriteHeader(http.StatusOK)
+
+}
+
+
+func (c Controls) GetUsers(w http.ResponseWriter, r*http.Request){
+	users, err := c.db.GetUsers()
+
 	if err != nil{
-		fmt.Prinln(err)
+		Response(w,err)
 	}
 
-	//place generated in cookie
-
-	w.WriteHeader(http.StatusOK)
-
+	Output(w, users)
 }
 
-
-func (c*Controllers) GetUsers(w http.ResponseWriter, r*http.Request){
-	users := c.db.GetUsers()
-	resp ,_ := json.Marshal(users)
-	w.Header().Set("content-type","application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write(resp)
-
-}
-
-func (c*Controllers) GetUser(w http.ResponseWriter, r*http.Request){
+func (c Controls) GetUser(w http.ResponseWriter, r*http.Request){
 	param := mux.Vars(r)
-	Id,err := strconv.ParseInt(param["ID"],0,0)
+	id,err := strconv.ParseUint(param["ID"],0,0)
 	if err != nil{
-		fmt.Prinln("str to Int conversion error")
+		Response(w,err)
 	}
 
-	user, err := c.db.GetUser(Id)
+	user, err := c.db.GetUser(uint(id))
 	if err != nil{
-		fmt.Prinln()
+		Response(w,err)
 	}
 
-	resp,_ := json.Marshal(user)
-	w.Header().Set("content-type","application/json")
-	w.WriteHeader(http.StatusOK)
-	w.Write(resp)
+	Output(w, user)
 }

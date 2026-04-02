@@ -2,45 +2,46 @@ package routes
 
 import(
 	"github.com/gorilla/mux"
-
+	
 	"github.com/WDaily/go-RBAC-Booking-api/controls"
-	"github.com/WDaily/go-RBAC-Booking-api/midddleware"
+	middleware "github.com/WDaily/go-RBAC-Booking-api/routes/middleware"
 )
 
-func AppRoutes(r*mux.router, db models.DatabaseAccess){
+func CreateRouter() *mux.Router{
+	r := mux.NewRouter()
 
-	appRoute := r.PathPrefix("/app/user").SubRouter()
-	appRoute.HandleFunc("/input",controls.Input).Methods("POST")
-	appRoute.HandleFunc("/login",db.Login).Methods("POST")
+	return r
+}
 
-	//admin routes (can get all users/user, add/edit rooms, get all bookingd)
+func AppRoutes(r*mux.Router, db controls.Controls){
 
-	adminRoute := r.PathPrefix("/admin").SubRouter()
-	//middleware func
+	appRoute := r.PathPrefix("/app/user").Subrouter()
+	appRoute.HandleFunc("/input", db.Input).Methods("POST")
+	appRoute.HandleFunc("/login", db.Login).Methods("POST")
 
-	adminRoute.Use(middleware.adminMiddleware)
+
+	adminRoute := r.PathPrefix("/admin").Subrouter()
+	adminRoute.Use(middleware.AdminMiddleware)
 	//users
 	adminRoute.HandleFunc("/users",db.GetUsers).Methods("GET")
 	adminRoute.HandleFunc("/users/{ID}",db.GetUser).Methods("GET")
-	adminRoute.HandleFunc("/users/role",db.UpdateUser).Methods("POST")
 
 	//roles
 	adminRoute.HandleFunc("/users/role",db.CreateRole).Methods("POST")
-	adminRoute.HandleFunc("/users/roles",db.GetRoles).Methods("GET")
-	adminRoute.HandleFunc("/users/roles/{ID}",db.UpdateRole).Methods("POST")
+	adminRoute.HandleFunc("/users/roles/{ID}",db.GetRoles).Methods("GET")
 
 	//rooms
 	adminRoute.HandleFunc("/room/add",db.AddRoom).Methods("POST")
-	adminRoute.HandleFunc("/room/edit",db.UpdateRoom).Methods("PUT")
+	adminRoute.HandleFunc("/room//{ID}/edit",db.UpdateRoom).Methods("PUT")
 
 	//bookings
 	adminRoute.HandleFunc("/room/bookings",db.GetBookings).Methods("GET")
 
 
-	publicRoute := r.PathPrefix("/public").SubRouter()
-	publicRoute.Use(middleware.validateMiddleware)
+	publicRoute := r.PathPrefix("/public").Subrouter()
+	publicRoute.Use(middleware.ValidateMiddleware)
 	publicRoute.HandleFunc("/rooms",db.GetRooms).Methods("GET")
-
-	//notyet
+	publicRoute.HandleFunc("/rooms/{ID}/Book", db.BookRoom).Methods("POST")
+	
 	publicRoute.HandleFunc("/rooms/{ID}",db.GetRoom).Methods("GET")
 }

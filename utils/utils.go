@@ -1,17 +1,11 @@
-package unmarshal
+package utils
 
 import(
 	"net/http"
-	"io/ioutil"
 	"encoding/json"
 )
 
 
-func ChangeFmt(r*http.Request,t interface{}){
-	body, err := ioutil.ReadAll(r.Body)
-	if err == nil{
-		if err := json.Unmashal([]byte(body),t); err != nil{
-			return
-		}
-	}
+func ChangeFormat(r*http.Request,t interface{}) error{
+	return json.NewDecoder(r.Body).Decode(t)
 }

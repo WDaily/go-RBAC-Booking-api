@@ -1,24 +1,38 @@
 package main
 
 import(
+	"fmt"
+	"log"
 	"net/http"
-	"github.com/gorilla/mux"
-	"github.com/WDaily/go-RBAC-Booking-api/models"
+	"github.com/WDaily/go-RBAC-Booking-api/controls"
 	"github.com/WDaily/go-RBAC-Booking-api/database"
-	"github.com/WDaily/go-RBAC-Booking-api/routes"
+	router "github.com/WDaily/go-RBAC-Booking-api/routes"
 )
 
 func main(){
-	r := mux.NewRouter()
 
-	r.Use(auth.AdminValidate)
+	r := router.CreateRouter()
 
-	db := database.Inisialise()
+	url := "booking.db"
 
-	DatabaseAccess := models.Newdb(db)
+	db, err := database.Setup(url)
 
-	routes.AppRoutes(r,DatabaseAccess)
+	if err != nil{
+		fmt.Printf("Database start up error:%s\n",err)
+	}
 
-	http.ListenAndServe(":8080",r)
+	database.LoadData(db)
+
+	databaseAccess :=database.Newdb(db)
+
+	database.DataBaseAutoMigrate(db)
+
+	controlsAccess := controls.NewControls(databaseAccess)
+
+	router.AppRoutes(r,controlsAccess)
+
+	if err := http.ListenAndServe(":8080",r); err != nil{
+		log.Printf("http error:%s\n", err)
+	}
 
 }
